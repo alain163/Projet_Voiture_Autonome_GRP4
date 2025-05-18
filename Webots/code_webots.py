@@ -7,12 +7,12 @@ driver = Driver()
 basicTimeStep = int(driver.getBasicTimeStep())
 sensorTimeStep = 4 * basicTimeStep
 
-
+# on initilise le LiDAR
 lidar = Lidar("RpLidarA2")
 lidar.enable(sensorTimeStep)
 lidar.enablePointCloud()
 
-
+# pareil pour les constantes
 vitesse_max = 27.5  # km/h
 angle_limite = 0.27  # rad
 seuil_obstacle = 1.05  # m
@@ -20,23 +20,23 @@ distance_evitem = 0.25  # m
 V_consigne = 3.0  # km/h
 K = 0.5
 
-
+# les variables de contrôle
 direction = 0
 vitesse = 0
 auto_actif = True
-obstacle_pres = Falses
+obstacle_pres = False
 
+# l'indice ici LiDAR pour l'avant
+distance_avant = 0  # 0° correspond à l'avant
 
-distance_avant = 0  
-
-
+# on ouvre le fichier CSV (dans le dossier courant)
 with open("donnees_robot_fusion.csv", mode="w", newline="", encoding="utf-8") as fichier_csv:
     writer = csv.writer(fichier_csv)
     writer.writerow(["Δx_g (m)", "Δx_d (m)", "Δx_avant (m)", "V_g (km/h)", "V_d (km/h)"])
 
-    print("🚗 Mode autonome activé avec enregistrement CSV")
+    print(" Mode autonome activé avec enregistrement CSV")
 
-    # Boucle principale
+    # la boucle principale
     while driver.step() != -1:
         donnees_lidar = lidar.getRangeImage()
 
@@ -50,12 +50,12 @@ with open("donnees_robot_fusion.csv", mode="w", newline="", encoding="utf-8") as
 
         print(f"[LIDAR] Avant: {delta_x_avant:.2f} m | Gauche: {delta_x_g:.2f} m | Droite: {delta_x_d:.2f} m")
 
-        
+        # detection obstacle
         obstacle_pres = any(
             donnees_lidar[i] < seuil_obstacle or donnees_lidar[359 - i] < seuil_obstacle for i in range(20)
         )
 
-        
+        # fonctions pour analyser l'espace
         def gauche_dispo():
             espace_g = sum(max(0, donnees_lidar[i] - donnees_lidar[359 - i]) for i in range(90))
             espace_d = sum(max(0, donnees_lidar[359 - i] - donnees_lidar[i]) for i in range(90))
@@ -88,14 +88,14 @@ with open("donnees_robot_fusion.csv", mode="w", newline="", encoding="utf-8") as
             vitesse = 0
             direction = 0
 
-        
+        # on calcul la les vitesses de roue gauche__droite
         V_g = V_consigne - K * (delta_x_d - delta_x_g)
         V_d = V_consigne + K * (delta_x_g - delta_x_d)
 
-        
+        # on ecrit dans le CSV
         writer.writerow([delta_x_g, delta_x_d, delta_x_avant, V_g, V_d])
 
-        
+        # less limites physiques
         vitesse = max(min(vitesse, vitesse_max), -vitesse_max)
         direction = max(min(direction, angle_limite), -angle_limite)
 
